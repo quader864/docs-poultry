@@ -1,0 +1,95 @@
+---
+title: "Poultry Farm Analytics API reference overview"
+description: "Reference overview for the Poultry Farm Analytics API: authentication, request conventions, error handling, rate limits, and the full list of endpoint groups."
+---
+
+The Poultry Farm Analytics API is a REST API for managing poultry farm inventory, flocks, cycles, analytics, anomalies, IoT devices, and operational workflows.
+
+- **Base URL** (local dev): `http://localhost:3000`
+- **Version**: `2.0.0`
+- **Content type**: `application/json`
+
+## Authentication
+
+Most endpoints require a JSON Web Token (JWT). Obtain one by calling `POST /api/v1/auth/login` and then send it on every subsequent request:
+
+```http
+Authorization: Bearer <token>
+```
+
+A small number of endpoints are public — `GET /`, `GET /health`, `POST /api/v1/auth/signup`, and `POST /api/v1/auth/login`.
+
+Example login flow:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"..."}'
+# => { "token": "<JWT>", "user": { ... } }
+
+curl http://localhost:3000/api/v1/flocks \
+  -H "Authorization: Bearer <JWT>"
+```
+
+Many endpoints additionally require specific **capabilities** (for example `view_analytics`, `manage_flocks`, `create_movement`). Capabilities are assigned per user by an admin; if your token does not carry the required capability the server responds with `403 Forbidden`.
+
+## Standard responses
+
+- `200 OK` — successful read/update.
+- `201 Created` — successful create.
+- `204 No Content` — successful delete.
+- `400 Bad Request` — validation error. Body: `{ error, details }`.
+- `401 Unauthorized` — missing or invalid token.
+- `403 Forbidden` — missing capability, locked account, or unverified account.
+- `404 Not Found` — resource does not exist.
+- `429 Too Many Requests` — rate limit hit.
+- `500 Internal Server Error` — body: `{ error }`.
+
+Successful responses are JSON, typically shaped as `{ message, data }` or a list of resources.
+
+## Rate limits
+
+| Limiter | Applies to |
+| --- | --- |
+| `generalLimiter` | All routes |
+| `authLimiter` | `/api/v1/auth/*` (stricter) |
+| `readLimiter` | Read-heavy routes (dashboard, analytics, rules, anomalies, …) |
+| `dateLimiter` | Inventory and admin (moderate) |
+
+## Endpoint groups
+
+Endpoints are organised by tag in the sidebar. Each endpoint page is auto-generated from the OpenAPI specification and includes an interactive **Try it** playground.
+
+| Group | Base path |
+| --- | --- |
+| Authentication | `/api/v1/auth` |
+| Dashboard | `/api/v1/dashboard` |
+| Inventory | `/api/v1/inventory` |
+| Analytics V2 | `/api/v2/analytics` |
+| Flock Analytics | `/api/v1/flock-analytics` |
+| Rules | `/api/v1/rules` |
+| Configuration | `/api/v1/config` |
+| Anomalies | `/api/v1/anomalies` |
+| Flocks | `/api/v1/flocks` |
+| Cycles | `/api/v1/flocks/{flockId}/cycles` |
+| Schedules | `/api/v1/schedules` |
+| Predictive | `/api/v1/predictive` |
+| Compliance | `/api/v1/compliance` |
+| Continuity | `/api/v1/continuity` |
+| Optimization | `/api/v1/optimization` |
+| Sharing | `/api/v1/sharing` |
+| Operations | `/api/v1/operations` |
+| Procurement | `/api/v1/procurement` |
+| IoT | `/api/v1/iot` |
+| Scale | `/api/v1/scale` |
+| Admin | `/api/v1/admin` |
+
+## Health & welcome
+
+### `GET /`
+
+Welcome endpoint. Returns API metadata, version, and a map of endpoint base paths.
+
+### `GET /health`
+
+Liveness probe. Returns `{ status, timestamp, uptime, environment }`. Not rate limited.
