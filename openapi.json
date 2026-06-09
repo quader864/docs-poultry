@@ -13802,8 +13802,8 @@
         "tags": [
           "Inventory"
         ],
-        "summary": "Aggregated flock snapshot: capacity, age, alive, losses, loss%, expected feed...",
-        "description": "Aggregated flock snapshot: capacity, age, alive, losses, loss%, expected feed range, today's consumption status\n\n**Required capabilities:** `view_reports`.",
+        "summary": "Aggregated flock snapshot with chart data: capacity, age, alive, losses, feed, containers, weight trend, and mortality breakdown",
+        "description": "Returns an aggregated snapshot for a flock, intended for powering dashboards and charts. The payload includes capacity, age (days), alive count, total losses, loss percentage, expected feed-consumption range, and today's consumption status, plus expanded chart-ready sections:\n\n- `feedMetrics` — per-feed-type purchased, consumed, wasted, remaining, and consumption percent.\n- `containerMetrics` — per-container-type purchased, used, remaining, and usage percent, with an optional daily `timeline` when `startDate` or `endDate` is supplied.\n- `weightTrend` — recent weight measurements (up to 30 days) including start/end weight, gain, and daily gain.\n- `mortalityBreakdown` — mortality counts grouped by reason with percentages.\n\nUse the optional query parameters to scope every returned metric to a specific production cycle and/or date range. When neither `startDate` nor `endDate` is provided, the container timeline defaults to the last 30 days.\n\n**Required capabilities:** `view_reports`.",
         "operationId": "get_api_v1_inventory_flocks_ByFlockId_status",
         "parameters": [
           {
@@ -13814,6 +13814,35 @@
               "type": "string"
             },
             "description": "flockId identifier"
+          },
+          {
+            "name": "cycleId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional production cycle ID. When provided, all returned metrics (losses, feed, containers, weight trend, and mortality breakdown) are scoped to this cycle."
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Optional start date in `YYYY-MM-DD` format. Used to scope the container timeline window."
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Optional end date in `YYYY-MM-DD` format. Used to scope the container timeline window."
           }
         ],
         "responses": {
