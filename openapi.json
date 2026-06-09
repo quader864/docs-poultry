@@ -12283,7 +12283,7 @@
           "Inventory"
         ],
         "summary": "Inventory overview and endpoints",
-        "description": "Inventory overview and endpoints",
+        "description": "Inventory overview and endpoints. Returns a map of available sub-resources, including movements, days, metrics, flock balances, eggs/productivity, `feed.supplies` (`GET /api/v1/inventory/feed-supplies`) and `containers.supplies` (`GET /api/v1/inventory/container-supplies`). Use this as a discovery endpoint to learn which inventory routes the API exposes.",
         "operationId": "get_api_v1_inventory",
         "responses": {
           "200": {
@@ -12386,7 +12386,7 @@
           "Inventory"
         ],
         "summary": "Get input schema for a specific movement type Frontend uses this to generate ...",
-        "description": "Get input schema for a specific movement type Frontend uses this to generate form fields for that movement type Example: GET /api/v1/inventory/input-schema/bird_inflow Returns: { type: 'bird_inflow', label: 'Bird Inflow', requiredFields: [...], optionalFields: [...] }",
+        "description": "Get input schema for a specific movement type. Frontend uses this to generate form fields for that movement type. Example: `GET /api/v1/inventory/input-schema/bird_inflow`. Returns: `{ type: 'bird_inflow', label: 'Bird Inflow', requiredFields: [...], optionalFields: [...] }`.\n\nFields can declare an `optionsEndpoint` that the client should call to populate dropdown options dynamically. For feed movements (`feed`, `feed_purchase`, `feed_consumption`), `feedMetrics.feedType` and `feedMetrics.batchNumber` use `optionsEndpoint: \"/inventory/feed-supplies\"` so users pick from feed formulations and batches that already exist for the flock. For carton and tray movements (`carton`, `carton_usage`, `tray`, `tray_usage`), `containerMetrics.capacity` and `containerMetrics.batchNumber` use `optionsEndpoint: \"/inventory/container-supplies\"`. The frontend should call the referenced endpoint with the current `flockId` (and optionally `cycleId`) to fetch live option values; `dependsOn` indicates fields whose value should be passed as an additional filter (for example `batchNumber` depends on the selected `feedType` or `capacity`).",
         "operationId": "get_api_v1_inventory_input_schema_ByMovementType",
         "parameters": [
           {
@@ -12594,6 +12594,358 @@
                     "data": {
                       "type": "object",
                       "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/inventory/feed-supplies": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get current available feed supplies by formulation and batch",
+        "description": "Get the current available feed supplies for a flock, grouped by feed formulation (`feedType`) and then by purchase batch (`batchNumber`).\n\nThis endpoint is the live source of truth for feed inventory balances. For each batch it reports the total purchased, consumed, and wasted kilograms, plus the resulting `remainingKg`. Totals are also rolled up per formulation so callers can show a per-feed-type summary without re-aggregating.\n\nUse it when:\n- Rendering a feed-on-hand dashboard for a flock or cycle.\n- Populating dropdowns in the inventory movement form — the input schema for `feed_consumption` references this endpoint via `optionsEndpoint` so the client can offer the existing `feedType` and `batchNumber` values rather than free text.\n- Validating that a feed consumption movement will not overdraw a batch.\n\nIf `cycleId` is omitted the result aggregates across all cycles for the flock.\n\nExample:\n\n```bash\ncurl \"http://localhost:3000/api/v1/inventory/feed-supplies?flockId=66f0a1b2c3d4e5f6a7b8c9d0&cycleId=cycle-2026-01\" \\\n  -H \"Authorization: Bearer <JWT>\"\n```\n\nExample response:\n\n```json\n{\n  \"message\": \"Feed supplies by formulation and batch\",\n  \"data\": {\n    \"flockId\": \"66f0a1b2c3d4e5f6a7b8c9d0\",\n    \"cycleId\": \"cycle-2026-01\",\n    \"totalFeedTypes\": 1,\n    \"feedTypes\": [\n      {\n        \"feedType\": \"Layer Starter Pellets\",\n        \"totalPurchasedKg\": 5000,\n        \"totalConsumedKg\": 1200,\n        \"totalWastedKg\": 20,\n        \"totalRemainingKg\": 3780,\n        \"batches\": [\n          {\n            \"feedType\": \"Layer Starter Pellets\",\n            \"batchNumber\": \"LOT-2026-001234\",\n            \"purchasedKg\": 5000,\n            \"consumedKg\": 1200,\n            \"wastedKg\": 20,\n            \"remainingKg\": 3780,\n            \"supplier\": \"Acme Feed Co.\"\n          }\n        ]\n      }\n    ]\n  }\n}\n```",
+        "operationId": "get_api_v1_inventory_feed_supplies",
+        "parameters": [
+          {
+            "name": "flockId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Flock to compute feed balances for."
+          },
+          {
+            "name": "cycleId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional cycle filter. When omitted, balances aggregate across all cycles for the flock."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "flockId": {
+                          "type": "string"
+                        },
+                        "cycleId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalFeedTypes": {
+                          "type": "integer"
+                        },
+                        "feedTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "feedType": {
+                                "type": "string"
+                              },
+                              "totalPurchasedKg": {
+                                "type": "number"
+                              },
+                              "totalConsumedKg": {
+                                "type": "number"
+                              },
+                              "totalWastedKg": {
+                                "type": "number"
+                              },
+                              "totalRemainingKg": {
+                                "type": "number"
+                              },
+                              "batches": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "feedType": {
+                                      "type": "string"
+                                    },
+                                    "batchNumber": {
+                                      "type": "string"
+                                    },
+                                    "purchasedKg": {
+                                      "type": "number"
+                                    },
+                                    "consumedKg": {
+                                      "type": "number"
+                                    },
+                                    "wastedKg": {
+                                      "type": "number"
+                                    },
+                                    "remainingKg": {
+                                      "type": "number"
+                                    },
+                                    "supplier": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required query parameter (`flockId`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/inventory/container-supplies": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get current available carton/tray supplies by capacity and batch",
+        "description": "Get the current available carton and tray supplies for a flock, grouped by container type (`carton` or `tray`), capacity, and purchase batch.\n\nFor each batch the response reports `purchasedCount`, `usedCount`, and the resulting `remainingCount` (positive units still on hand). Totals are rolled up per container type. Pass `containerType=carton` or `containerType=tray` to scope the response to one type.\n\nUse it when:\n- Showing remaining cartons and trays on a packaging dashboard.\n- Populating dropdowns in the inventory movement form — the input schema for `carton_usage` and `tray_usage` references this endpoint via `optionsEndpoint` so the client can offer existing `capacity` and `batchNumber` values per container type.\n- Validating that a usage movement will not overdraw a specific batch.\n\nIf `cycleId` is omitted the result aggregates across all cycles for the flock.\n\nExample:\n\n```bash\ncurl \"http://localhost:3000/api/v1/inventory/container-supplies?flockId=66f0a1b2c3d4e5f6a7b8c9d0&containerType=carton\" \\\n  -H \"Authorization: Bearer <JWT>\"\n```\n\nExample response:\n\n```json\n{\n  \"message\": \"Container supplies by capacity and batch\",\n  \"data\": {\n    \"flockId\": \"66f0a1b2c3d4e5f6a7b8c9d0\",\n    \"cycleId\": null,\n    \"totalContainerTypes\": 1,\n    \"containerTypes\": [\n      {\n        \"containerType\": \"carton\",\n        \"totalPurchasedCount\": 500,\n        \"totalUsedCount\": 180,\n        \"totalRemainingCount\": 320,\n        \"batches\": [\n          {\n            \"containerType\": \"carton\",\n            \"capacity\": 360,\n            \"batchNumber\": \"CART-2026-04\",\n            \"purchasedCount\": 500,\n            \"usedCount\": 180,\n            \"remainingCount\": 320,\n            \"supplier\": \"BoxWorks Ltd.\"\n          }\n        ]\n      }\n    ]\n  }\n}\n```",
+        "operationId": "get_api_v1_inventory_container_supplies",
+        "parameters": [
+          {
+            "name": "flockId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Flock to compute container balances for."
+          },
+          {
+            "name": "cycleId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional cycle filter. When omitted, balances aggregate across all cycles for the flock."
+          },
+          {
+            "name": "containerType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "carton",
+                "tray"
+              ]
+            },
+            "description": "Optional filter to return only cartons or only trays."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "flockId": {
+                          "type": "string"
+                        },
+                        "cycleId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalContainerTypes": {
+                          "type": "integer"
+                        },
+                        "containerTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "containerType": {
+                                "type": "string",
+                                "enum": [
+                                  "carton",
+                                  "tray"
+                                ]
+                              },
+                              "totalPurchasedCount": {
+                                "type": "number"
+                              },
+                              "totalUsedCount": {
+                                "type": "number"
+                              },
+                              "totalRemainingCount": {
+                                "type": "number"
+                              },
+                              "batches": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "containerType": {
+                                      "type": "string"
+                                    },
+                                    "capacity": {
+                                      "type": "number"
+                                    },
+                                    "batchNumber": {
+                                      "type": "string"
+                                    },
+                                    "purchasedCount": {
+                                      "type": "number"
+                                    },
+                                    "usedCount": {
+                                      "type": "number"
+                                    },
+                                    "remainingCount": {
+                                      "type": "number"
+                                    },
+                                    "supplier": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required query parameter (`flockId`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
                     }
                   }
                 }
