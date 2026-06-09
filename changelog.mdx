@@ -3,6 +3,52 @@ title: "Changelog: Poultry Farm Analytics API release notes"
 description: "Release notes for the Poultry Farm Analytics API, including new endpoints, analytics features, bug fixes, and product improvements."
 ---
 
+<Update label="June 7, 2026" description="Breaking: inventory movements response split into active and deleted buckets">
+
+`GET /api/v1/inventory/movements` now returns active and soft-deleted movements as separate buckets so clients can surface deletion history alongside the live ledger.
+
+## Breaking change
+
+The response shape changed. Previously:
+
+```json
+{
+  "data": [ /* active movements */ ],
+  "pagination": { "total": 123, "limit": 500, "skip": 0, "hasMore": false }
+}
+```
+
+Now:
+
+```json
+{
+  "data": {
+    "active":  [ /* movements where isDeleted !== true */ ],
+    "deleted": [ /* movements where isDeleted === true */ ]
+  },
+  "pagination": {
+    "activeTotal": 123,
+    "deletedTotal": 4,
+    "limit": 500,
+    "skip": 0,
+    "hasMoreActive": false,
+    "hasMoreDeleted": false
+  }
+}
+```
+
+`limit` and `skip` are applied to each bucket independently.
+
+## How to migrate
+
+- Replace `response.data` reads with `response.data.active`.
+- Replace `pagination.total` / `pagination.hasMore` with `pagination.activeTotal` / `pagination.hasMoreActive`.
+- Optionally consume `response.data.deleted` and the matching `deletedTotal` / `hasMoreDeleted` fields to display soft-deleted movements.
+
+See [List inventory movements](/api-reference/overview) for the full schema.
+
+</Update>
+
 <Update label="June 4, 2026" description="Initial public release">
 
 The Poultry Farm Analytics API is now available. This first release covers the full v1 surface plus the new unified v2 analytics service.
