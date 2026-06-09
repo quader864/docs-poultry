@@ -12898,7 +12898,7 @@
           "Inventory"
         ],
         "summary": "List inventory movements (filtered by role)",
-        "description": "List inventory movements (filtered by role)\n\n**Required capabilities:** `view_raw_data`.",
+        "description": "List inventory movements (filtered by role).\n\nThe response splits results into two buckets: `data.active` (movements where `isDeleted` is not `true`) and `data.deleted` (soft-deleted movements). Each bucket has its own total and `hasMore` flag under `pagination` (`activeTotal` / `hasMoreActive` and `deletedTotal` / `hasMoreDeleted`). The `limit` and `skip` query parameters apply to each bucket independently.\n\n**Breaking change (June 7, 2026):** previous releases returned `data` as a flat array of active movements and a single `pagination.total` / `pagination.hasMore`. Clients that read `data[i]` directly should switch to `data.active[i]` (and consume `data.deleted` if they want to surface soft-deleted records).\n\n**Required capabilities:** `view_raw_data`.",
         "operationId": "get_api_v1_inventory_movements",
         "parameters": [
           {
@@ -12935,7 +12935,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "`limit` query parameter."
+            "description": "`limit` query parameter. Applied independently to the `active` and `deleted` buckets."
           },
           {
             "name": "skip",
@@ -12944,18 +12944,69 @@
             "schema": {
               "type": "string"
             },
-            "description": "`skip` query parameter."
+            "description": "`skip` query parameter. Applied independently to the `active` and `deleted` buckets."
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "OK. Active and soft-deleted movements are returned in separate buckets, each with its own total and `hasMore` flag.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
-                  "description": "Resource data (object or array depending on endpoint)."
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "description": "Movements split into active and soft-deleted buckets.",
+                      "properties": {
+                        "active": {
+                          "type": "array",
+                          "description": "Movements that have not been soft-deleted.",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "deleted": {
+                          "type": "array",
+                          "description": "Movements that have been soft-deleted (`isDeleted: true`).",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "activeTotal": {
+                          "type": "integer",
+                          "description": "Total number of active movements matching the filters."
+                        },
+                        "deletedTotal": {
+                          "type": "integer",
+                          "description": "Total number of soft-deleted movements matching the filters."
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Page size applied to each bucket."
+                        },
+                        "skip": {
+                          "type": "integer",
+                          "description": "Offset applied to each bucket."
+                        },
+                        "hasMoreActive": {
+                          "type": "boolean",
+                          "description": "`true` when more active movements remain beyond this page."
+                        },
+                        "hasMoreDeleted": {
+                          "type": "boolean",
+                          "description": "`true` when more soft-deleted movements remain beyond this page."
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
